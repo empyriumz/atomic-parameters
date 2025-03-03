@@ -1,0 +1,41 @@
+name: Docker Build and Test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        load: true
+        tags: atomic-parameters:test
+        push: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Test Docker image - Simple command
+      run: docker run atomic-parameters:test python -c "import sys; print(f'Python {sys.version} is working')"
+    
+    - name: Test Docker image - Help command
+      run: docker run atomic-parameters:test python /home/atomic/atomic-parameters/parameters.py --help
+      
+    - name: Test Docker image - Calculate Fe parameters
+      run: |
+        docker run atomic-parameters:test python /home/atomic/atomic-parameters/parameters.py --element "Fe" --configuration "3d5"
+    
+    - name: Test Docker image - Calculate more complex parameters
+      run: |
+        docker run atomic-parameters:test python /home/atomic/atomic-parameters/parameters.py --element "Fe" --configuration "1s1,3d5" 

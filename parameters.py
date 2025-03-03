@@ -251,11 +251,24 @@ class Cowan:
         self.configuration = configuration
         self.basename = basename
 
+        # Ensure TTMULT is set to an absolute path of the bin directory
         if "TTMULT" not in os.environ:
             logging.debug(
                 "The $TTMULT environment variable is not set; will use internal binaries."
             )
             os.environ["TTMULT"] = self.bin
+        else:
+            # Make sure the path is absolute
+            ttmult_path = os.environ["TTMULT"]
+            if not os.path.isabs(ttmult_path):
+                os.environ["TTMULT"] = os.path.abspath(ttmult_path)
+                logging.debug("TTMULT set to absolute path: %s", os.environ["TTMULT"])
+            
+        logging.debug("TTMULT is set to: %s", os.environ["TTMULT"])
+        
+        # Log the platform we're running on
+        platform = sys.platform
+        logging.debug("Platform detected as: %s", platform)
 
     @property
     def root(self):
@@ -286,15 +299,31 @@ class Cowan:
     def run(self, command):
         """Run the "command"; discard stdout and stderr, but check the exit status."""
         try:
-            subprocess.run(
+            logging.debug("Running command: %s %s", command, self.basename)
+            logging.debug("Current directory: %s", os.getcwd())
+            logging.debug("TTMULT is set to: %s", os.environ.get("TTMULT", "Not set"))
+            
+            result = subprocess.run(
                 (command, self.basename),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 check=True,
             )
-        except subprocess.CalledProcessError:
+            
+            # Command succeeded
+            logging.debug("Command output: %s", result.stdout.decode('utf-8', errors='replace'))
+            return True
+        except subprocess.CalledProcessError as e:
+            # Command failed
             logging.critical("The command %s did not finish successfully.", command)
-            sys.exit()
+            logging.critical("Exit code: %s", e.returncode)
+            logging.critical("Command output: %s", e.stdout.decode('utf-8', errors='replace'))
+            logging.critical("Command error: %s", e.stderr.decode('utf-8', errors='replace'))
+            sys.exit(1)
+        except Exception as e:
+            # Other exception
+            logging.critical("Error running command %s: %s", command, str(e))
+            sys.exit(1)
 
     def run_rcn(self):
         """Create the input and run the RCN program."""
@@ -456,14 +485,21 @@ class Cowan:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--element", default="Fe")
-    parser.add_argument("-c", "--configuration", default="3d5")
-    parser.add_argument("-l", "--loglevel", default="info")
+    parser.add_argument("-e", "--element", default="Fe", help="Chemical element symbol")
+    parser.add_argument("-c", "--configuration", default="3d5", help="Electronic configuration (e.g., '1s1,3d5')")
+    parser.add_argument("-l", "--loglevel", default="debug", help="Logging level (debug, info, warning, error, critical)")
+    parser.add_argument("--no-debug", action="store_true", help="Disable debug output and use info level")
 
     args = parser.parse_args()
+    
+    # If no-debug is specified, override the loglevel
+    if args.no_debug:
+        log_level = "INFO"
+    else:
+        log_level = args.loglevel.upper()
 
     logging.basicConfig(
-        format="%(levelname)s: %(message)s", level=args.loglevel.upper()
+        format="%(levelname)s: %(message)s", level=log_level
     )
 
     if sys.platform == "win32":
