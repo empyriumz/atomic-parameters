@@ -50,7 +50,7 @@ To save the output to your local machine, mount a volume:
 docker run -it -v $(pwd)/results:/home/atomic/results atomic-parameters bash
 ```
 
-Then within the container:
+Then within the container folder `/home/atomic/atomic-parameters/`, you can run:
 
 ```bash
 python parameters.py --element "Fe" --configuration "1s1,3d5" > /home/atomic/results/fe_params.txt
