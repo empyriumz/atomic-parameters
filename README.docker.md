@@ -7,7 +7,7 @@ This Docker image provides everything needed to run the atomic parameters calcul
 To build the Docker image, navigate to the repository root and run:
 
 ```bash
-docker build -t atomic-parameters .
+docker build -t atomic-parameters  --platform linux/amd64 .
 ```
 
 ## Running the Docker Container
